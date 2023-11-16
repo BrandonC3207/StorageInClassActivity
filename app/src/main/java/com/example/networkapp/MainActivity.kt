@@ -14,9 +14,16 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.squareup.picasso.Picasso
 import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.FileReader
+import java.io.IOException
 
 // TODO (1: Fix any bugs)
 // TODO (2: Add function saveComic(...) to save and load comic info automatically when app starts)
+private const val AUTO_SAVE_KEY = "auto_save"
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,6 +33,11 @@ class MainActivity : AppCompatActivity() {
     lateinit var numberEditText: EditText
     lateinit var showButton: Button
     lateinit var comicImageView: ImageView
+
+    private val internalFileName = "comic.txt"
+    private lateinit var file: File
+    lateinit var comicObject: JSONObject
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,12 +55,33 @@ class MainActivity : AppCompatActivity() {
             downloadComic(numberEditText.text.toString())
         }
 
+        file = File(filesDir, internalFileName)
+
+        if (file.exists()) {
+            try {
+                val br = BufferedReader(FileReader(file))
+                val text = StringBuilder()
+                var line: String?
+                while (br.readLine().also { line = it } != null) {
+                    text.append(line)
+                    text.append('\n')
+                }
+                br.close()
+                comicObject = JSONObject(text.toString())
+
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+            showComic(comicObject)
+        }
     }
 
     private fun downloadComic (comicId: String) {
         val url = "https://xkcd.com/$comicId/info.0.json"
         requestQueue.add (
-            JsonObjectRequest(url, {showComic(it)}, {
+            JsonObjectRequest(url, {
+                saveComic(it)
+                showComic(it)}, {
             })
         )
     }
@@ -59,5 +92,14 @@ class MainActivity : AppCompatActivity() {
         Picasso.get().load(comicObject.getString("img")).into(comicImageView)
     }
 
-
+    private fun saveComic(comicObject: JSONObject) {
+        try {
+            val outputStream = FileOutputStream(file)
+            outputStream.write(comicObject.toString().toByteArray())
+            outputStream.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
+
